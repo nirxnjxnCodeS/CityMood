@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CityMood
 
-## Getting Started
+Real-time emotional pulse of cities worldwide — powered by Reddit sentiment, OpenWeather conditions, and live news headlines, all rendered as breathing orbs.
 
-First, run the development server:
+## Setup
 
 ```bash
+git clone <your-repo-url>
+cd CityMood
+npm install
+cp .env.local.example .env.local
+# fill in your API keys in .env.local
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API Keys (both free tier)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **OpenWeather** — [openweathermap.org/api](https://openweathermap.org/api) → "Current Weather Data" free plan → add as `OPENWEATHER_KEY`
+- **NewsAPI** — [newsapi.org/register](https://newsapi.org/register) → free developer key → add as `NEWS_API_KEY`
 
-## Learn More
+## Deploy
 
-To learn more about Next.js, take a look at the following resources:
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# one-time setup
+npm i -g vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# deploy
+git init && git add . && git commit -m "init"
+gh repo create citymood --public --push --source=.
+vercel --prod
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Set `OPENWEATHER_KEY` and `NEWS_API_KEY` in your Vercel project environment variables.
