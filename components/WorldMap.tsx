@@ -715,45 +715,69 @@ export default function WorldMap({ cities, onScoreUpdate, onCityClick, onBgClick
       })
     })
 
-    // Per-city SSE
-    const sources = cities.map(city => {
-      const es = new EventSource(`/api/stream/${city.id}`)
-      es.onmessage = e => {
-        try {
-          const data: MoodData = JSON.parse(e.data)
-          cityDataRef.current.set(city.id, data)
-          onScoreUpdate?.(city.id, data.score)
-          const cm = cityMeshesRef.current.get(city.id)
-          if (cm) cm.targetColor.setStyle(moodColorHex(data.score))
-          if (!firstDataRef.current.has(city.id)) {
-            firstDataRef.current.add(city.id)
-            setConnectedCount(prev => {
-              const next = prev + 1
-              // Show globe once 60% of cities have connected (handles large city counts)
-              if (next >= Math.ceil(cities.length * 0.6)) setLoadingDone(true)
-              return next
-            })
-          }
-          if (hoveredIdRef.current === city.id)
-            setTooltipData({ cityId: city.id, data })
-        } catch { /* ignore */ }
-      }
-      return es
-    })
+    // Per-city polling — staggered 800ms apart to avoid startup thundering herd
+    const cityIntervals: ReturnType<typeof setInterval>[] = []
+    const cityTimeouts:  ReturnType<typeof setTimeout>[]  = []
 
-    // Alert SSE — flash the affected city dot
-    const alertEs = new EventSource('/api/alerts')
-    alertEs.onmessage = e => {
-      try {
-        const alert = JSON.parse(e.data)
-        const cm = cityMeshesRef.current.get(alert.cityId)
-        if (cm) cm.alertFlashUntil = Date.now() + 1500
-      } catch { /* ignore */ }
+    const applyMoodData = (city: (typeof cities)[number], data: MoodData) => {
+      cityDataRef.current.set(city.id, data)
+      onScoreUpdate?.(city.id, data.score)
+      const cm = cityMeshesRef.current.get(city.id)
+      if (cm) cm.targetColor.setStyle(moodColorHex(data.score))
+      if (!firstDataRef.current.has(city.id)) {
+        firstDataRef.current.add(city.id)
+        setConnectedCount(prev => {
+          const next = prev + 1
+          if (next >= Math.ceil(cities.length * 0.6)) setLoadingDone(true)
+          return next
+        })
+      }
+      if (hoveredIdRef.current === city.id)
+        setTooltipData({ cityId: city.id, data })
     }
 
+    cities.forEach((city, index) => {
+      const fetchMood = async () => {
+        try {
+          const res = await fetch(`/api/stream/${city.id}`)
+          if (!res.ok) return
+          const data: MoodData = await res.json()
+          applyMoodData(city, data)
+        } catch { /* ignore */ }
+      }
+
+      const pollMs = city.tier === 2 ? 300_000 : 120_000
+      const t = setTimeout(() => {
+        fetchMood()
+        cityIntervals.push(setInterval(fetchMood, pollMs))
+      }, index * 800)
+      cityTimeouts.push(t)
+    })
+
+    // Alert polling — check every 60s, flash city dots for new alerts
+    let lastAlertTs = Date.now()
+    const pollAlerts = async () => {
+      try {
+        const res = await fetch('/api/alerts')
+        if (!res.ok) return
+        const alerts: Array<{ cityId: string; ts: number }> = await res.json()
+        const fresh = alerts.filter(a => a.ts > lastAlertTs)
+        if (fresh.length > 0) {
+          lastAlertTs = Math.max(...fresh.map(a => a.ts))
+          fresh.forEach(alert => {
+            const cm = cityMeshesRef.current.get(alert.cityId)
+            if (cm) cm.alertFlashUntil = Date.now() + 1500
+          })
+        }
+      } catch { /* ignore */ }
+    }
+    pollAlerts()
+    const alertInterval = setInterval(pollAlerts, 60_000)
+
     return () => {
-      sources.forEach(es => es.close())
-      alertEs.close()
+      cityTimeouts.forEach(t => clearTimeout(t))
+      cityIntervals.forEach(i => clearInterval(i))
+      clearInterval(alertInterval)
     }
   }, [cities]) // eslint-disable-line react-hooks/exhaustive-deps
 
