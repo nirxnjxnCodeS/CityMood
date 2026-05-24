@@ -23,7 +23,10 @@ export async function getWeatherMood(
   lat: number,
   lon: number,
   cityId: string,
+  tier: 1 | 2 = 1,
 ): Promise<{ score: number; description: string; tempK: number }> {
+  if (tier === 2) return { score: 0, description: 'N/A', tempK: 0 }
+
   const cached = weatherCache.get(cityId)
 
   if (cached && Date.now() - cached.ts < WEATHER_TTL) {
