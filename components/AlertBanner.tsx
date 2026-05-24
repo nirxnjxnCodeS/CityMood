@@ -20,15 +20,26 @@ export default function AlertBanner() {
   }
 
   useEffect(() => {
-    const es = new EventSource('/api/alerts')
-    es.onopen  = () => console.log('[AlertBanner] SSE connected to /api/alerts')
-    es.onerror = err => console.warn('[AlertBanner] SSE error', err)
-    es.onmessage = e => {
-      console.log('[AlertBanner] SSE message received:', e.data)
-      try { pushAlert(JSON.parse(e.data) as MoodAlert) } catch { /* ignore */ }
+    // Show alerts from the last 60s on first load, then only new ones
+    let lastSeenTs = Date.now() - 60_000
+
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/alerts')
+        if (!res.ok) return
+        const alerts = await res.json() as MoodAlert[]
+        const fresh = alerts.filter(a => a.ts > lastSeenTs)
+        if (fresh.length > 0) {
+          lastSeenTs = Math.max(...fresh.map(a => a.ts))
+          fresh.forEach(pushAlert)
+        }
+      } catch { /* ignore */ }
     }
+
+    poll()
+    const interval = setInterval(poll, 60_000)
     return () => {
-      es.close()
+      clearInterval(interval)
       timersRef.current.forEach(t => clearTimeout(t))
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
