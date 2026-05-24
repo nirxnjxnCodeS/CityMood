@@ -274,16 +274,34 @@ export default function CityPanel({ city, data, onClose }: Props) {
           </button>
         </div>
 
-        {/* Weather + day/night */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>
-          <span>{emoji} {data.weatherDesc}</span>
-          {tempC != null && (
-            <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{tempC}°C</span>
-          )}
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: isNight ? '#8888cc' : '#ffcc44' }}>
-            {isNight ? '🌙 Night' : '☀️ Day'}
-          </span>
-        </div>
+        {/* Weather + day/night (tier 1 only) */}
+        {city.tier === 1 ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, fontSize: 13, color: 'rgba(255,255,255,0.55)' }}>
+            <span>{emoji} {data.weatherDesc}</span>
+            {tempC != null && tempC > -200 && (
+              <span style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>{tempC}°C</span>
+            )}
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: isNight ? '#8888cc' : '#ffcc44' }}>
+              {isNight ? '🌙 Night' : '☀️ Day'}
+            </span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12 }}>
+            <span style={{
+              fontSize: 11,
+              color: 'rgba(255,255,255,0.4)',
+              background: 'rgba(255,255,255,0.07)',
+              borderRadius: 4,
+              padding: '3px 8px',
+              fontWeight: 500,
+            }}>
+              📡 Community data only
+            </span>
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: isNight ? '#8888cc' : '#ffcc44' }}>
+              {isNight ? '🌙 Night' : '☀️ Day'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Scrollable content */}
@@ -295,11 +313,16 @@ export default function CityPanel({ city, data, onClose }: Props) {
             <p style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', marginBottom: 12 }}>
               Why this mood
             </p>
-            {([
-              { label: 'Reddit',  score: src.reddit  },
-              { label: 'Weather', score: src.weather },
-              { label: 'News',    score: src.news    },
-            ] as const).map(({ label, score }) => {
+            {(city.tier === 1
+              ? [
+                  { label: 'Reddit',  score: src.reddit  },
+                  { label: 'Weather', score: src.weather },
+                  { label: 'News',    score: src.news    },
+                ]
+              : [
+                  { label: 'Reddit',  score: src.reddit  },
+                ]
+            ).map(({ label, score }) => {
               const barCol = score >= 0 ? '#22c55e' : '#ef4444'
               const pct    = Math.min(Math.abs(score) * 100, 100)
               return (
