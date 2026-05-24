@@ -1,4 +1,4 @@
-import { City } from './cities'
+import { City, CITIES } from './cities'
 import { getRedditSentiment } from './sources/reddit'
 import { getWeatherMood } from './sources/weather'
 import { getNewsSentiment } from './sources/news'
@@ -18,7 +18,8 @@ interface MoodResult {
 
 const CACHE       = new Map<string, MoodResult>()
 const moodHistory = new Map<string, HistoryPoint[]>()
-const TTL         = 60_000
+const TTL_T1      = 60_000
+const TTL_T2      = 300_000
 const MAX_HISTORY = 24
 
 export { CACHE }
@@ -33,17 +34,41 @@ function seedHistory(cityId: string, seed: number): void {
     s = Math.max(-1, Math.min(1, s + (Math.random() - 0.5) * 0.12))
     pts.push({ score: +s.toFixed(3), ts: now - i * 3_600_000 })
   }
-  // loop pushes i=23 first (oldest) → i=1 last (most recent): already chronological
   moodHistory.set(cityId, pts)
 }
 
 export async function getCityMood(city: City): Promise<MoodResult> {
   const cached = CACHE.get(city.id)
-  if (cached && Date.now() - cached.ts < TTL) return cached
+  const ttl    = city.tier === 2 ? TTL_T2 : TTL_T1
+  if (cached && Date.now() - cached.ts < ttl) return cached
+
+  if (city.tier === 2) {
+    const reddit = await getRedditSentiment(city.subreddit)
+    const clampedScore = Math.max(-1, Math.min(1, reddit.score))
+    const ts = Date.now()
+
+    seedHistory(city.id, clampedScore)
+    const hist = moodHistory.get(city.id)!
+    hist.push({ score: +clampedScore.toFixed(3), ts })
+    if (hist.length > MAX_HISTORY) hist.shift()
+
+    const result: MoodResult = {
+      score:        clampedScore,
+      headlines:    [],
+      redditTitles: reddit.titles,
+      weatherDesc:  'N/A',
+      tempK:        0,
+      sourceScores: { reddit: reddit.score, weather: 0, news: 0 },
+      history:      [...hist],
+      ts,
+    }
+    CACHE.set(city.id, result)
+    return result
+  }
 
   const [reddit, weather, news] = await Promise.all([
     getRedditSentiment(city.subreddit),
-    getWeatherMood(city.lat, city.lon, city.id),
+    getWeatherMood(city.lat, city.lon, city.id, city.tier),
     getNewsSentiment(city.id, city.name, city.index),
   ])
 
@@ -72,3 +97,14 @@ export async function getCityMood(city: City): Promise<MoodResult> {
   CACHE.set(city.id, result)
   return result
 }
+
+// Stagger startup fetches so we don't slam all APIs at once.
+// 55 cities × 500ms = ~27s total ramp-up window.
+function warmCache(): void {
+  CITIES.forEach((city, index) => {
+    setTimeout(() => {
+      getCityMood(city).catch(() => {})
+    }, index * 500)
+  })
+}
+warmCache()
