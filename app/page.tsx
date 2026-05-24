@@ -69,7 +69,7 @@ export default function Home() {
     const id = `custom-${++idCounter}`
     setCities(prev => [
       ...prev,
-      { id, name: newName.trim(), subreddit: newSub.trim(), lat: 0, lon: 0, country: '', index: prev.length % 4 },
+      { id, name: newName.trim(), subreddit: newSub.trim(), lat: 0, lon: 0, country: '', index: prev.length % 4, tier: 2 },
     ])
     setNewName('')
     setNewSub('')

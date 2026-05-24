@@ -524,6 +524,8 @@ export default function WorldMap({ cities, onScoreUpdate, onCityClick, onBgClick
     window.addEventListener('resize', onResize)
 
     // ── Animation loop ───────────────────────────────────────────────────────
+    const GREY = new THREE.Color(0x333344)
+
     const animate = () => {
       frameIdRef.current = requestAnimationFrame(animate)
       const now    = Date.now()
@@ -559,6 +561,17 @@ export default function WorldMap({ cities, onScoreUpdate, onCityClick, onBgClick
         cm.labelEl.style.opacity = showLabel ? '1' : '0'
 
         if (!facing) return
+
+        // No data yet — dim grey with no pulse ring so "loading" ≠ "calm"
+        const hasData = cityDataRef.current.has(cityId)
+        if (!hasData) {
+          cm.dotMat.opacity += (0.3 - cm.dotMat.opacity) * 0.1
+          cm.ringMat.opacity = 0
+          cm.currentColor.lerp(GREY, 0.05)
+          cm.dotMat.emissive.copy(cm.currentColor)
+          cm.dotMat.emissiveIntensity = 0.2
+          return
+        }
 
         // Filter opacity (mood filter + continent filter)
         const filter    = activeFilterRef.current
