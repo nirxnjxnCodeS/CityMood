@@ -1,5 +1,26 @@
 import { scoreText } from '../sentiment'
 
+// Max 2 concurrent Reddit requests; 300ms cooldown between queue releases.
+let activeRequests = 0
+const queue: Array<() => void> = []
+
+async function acquireSlot(): Promise<void> {
+  if (activeRequests < 2) {
+    activeRequests++
+    return
+  }
+  await new Promise<void>(resolve => queue.push(resolve))
+  activeRequests++
+}
+
+function releaseSlot(): void {
+  activeRequests--
+  if (queue.length > 0) {
+    const next = queue.shift()!
+    setTimeout(next, 300)
+  }
+}
+
 const POSITIVE_BOOST = new Set([
   'won','win','celebrate','amazing','love','beautiful','great','awesome',
   'happy','excited','proud','record','best','festival','party','success','milestone',
@@ -35,13 +56,18 @@ function scorePost(post: Post): number {
 }
 
 async function fetchPosts(subreddit: string, sort: 'new' | 'hot', limit: number): Promise<Post[]> {
-  const res = await fetch(
-    `https://www.reddit.com/r/${subreddit}/${sort}.json?limit=${limit}`,
-    { headers: { 'User-Agent': 'CityMood/1.0' }, next: { revalidate: 0 } }
-  )
-  if (!res.ok) throw new Error(`reddit ${sort} ${res.status}`)
-  const json = await res.json()
-  return json?.data?.children?.map((c: { data: Post }) => c.data) ?? []
+  await acquireSlot()
+  try {
+    const res = await fetch(
+      `https://www.reddit.com/r/${subreddit}/${sort}.json?limit=${limit}`,
+      { headers: { 'User-Agent': 'CityMood/1.0' }, next: { revalidate: 0 } }
+    )
+    if (!res.ok) throw new Error(`reddit ${sort} ${res.status}`)
+    const json = await res.json()
+    return json?.data?.children?.map((c: { data: Post }) => c.data) ?? []
+  } finally {
+    releaseSlot()
+  }
 }
 
 export async function getRedditSentiment(subreddit: string): Promise<RedditResult> {
