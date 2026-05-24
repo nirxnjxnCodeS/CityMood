@@ -36,6 +36,7 @@ export function checkAndAlert(
         ts: Date.now(),
       }
       console.log(`[alertEngine] first-load alert: ${cityName} score=${score.toFixed(3)}`)
+      pushToBuffer(alert)
       listeners.forEach(cb => cb(alert))
     }
     return
@@ -50,6 +51,7 @@ export function checkAndAlert(
     ts: Date.now(),
   }
   console.log(`[alertEngine] delta alert: ${cityName} ${prev.toFixed(3)} → ${score.toFixed(3)} Δ${delta.toFixed(3)}`)
+  pushToBuffer(alert)
   listeners.forEach(cb => cb(alert))
 }
 
@@ -60,4 +62,16 @@ export function subscribe(cb: Listener): () => void {
 
 export function getPrevScores(): Map<string, number> {
   return prevScores
+}
+
+const alertBuffer: MoodAlert[] = []
+const MAX_BUFFER = 20
+
+export function pushToBuffer(alert: MoodAlert): void {
+  alertBuffer.push(alert)
+  if (alertBuffer.length > MAX_BUFFER) alertBuffer.shift()
+}
+
+export function getRecentAlerts(): MoodAlert[] {
+  return [...alertBuffer]
 }
