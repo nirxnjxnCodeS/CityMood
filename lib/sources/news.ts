@@ -2,6 +2,9 @@ import { scoreText } from '../sentiment'
 
 const NEWS_TTL = 21_600_000 // 6 hours
 
+// Only fetch GNews for these 4 cities — keeps us at 4 calls/day on the free tier.
+const NEWS_ALLOWLIST = new Set(['bangalore', 'london', 'new-york', 'tokyo'])
+
 interface NewsCacheEntry {
   score: number
   headlines: string[]
@@ -15,6 +18,8 @@ export async function getNewsSentiment(
   cityName: string,
   cityIndex: number,
 ): Promise<{ score: number; headlines: string[] }> {
+  if (!NEWS_ALLOWLIST.has(cityId)) return { score: 0, headlines: [] }
+
   const cached = newsCache.get(cityId)
 
   // Fresh cache — always return it, skip network entirely
