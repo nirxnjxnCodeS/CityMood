@@ -2,6 +2,7 @@ import { City, CITIES } from './cities'
 import { getRedditSentiment } from './sources/reddit'
 import { getWeatherMood } from './sources/weather'
 import { getNewsSentiment } from './sources/news'
+import { checkAndAlert } from './alertEngine'
 
 interface HistoryPoint { score: number; ts: number }
 
@@ -18,7 +19,7 @@ interface MoodResult {
 
 const CACHE       = new Map<string, MoodResult>()
 const moodHistory = new Map<string, HistoryPoint[]>()
-const TTL_T1      = 60_000
+const TTL_T1      = 120_000
 const TTL_T2      = 300_000
 const MAX_HISTORY = 24
 
@@ -62,6 +63,7 @@ export async function getCityMood(city: City): Promise<MoodResult> {
       history:      [...hist],
       ts,
     }
+    checkAndAlert(city.id, city.name, city.flag ?? '', clampedScore)
     CACHE.set(city.id, result)
     return result
   }
@@ -94,6 +96,7 @@ export async function getCityMood(city: City): Promise<MoodResult> {
     ts,
   }
 
+  checkAndAlert(city.id, city.name, city.flag ?? '', clampedScore)
   CACHE.set(city.id, result)
   return result
 }
