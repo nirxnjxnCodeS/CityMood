@@ -16,7 +16,8 @@
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background: #050510;
+  background-color: #050510;
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -24,4 +25,40 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+@keyframes activeBorder {
+  0%, 100% {
+    border-color: var(--glow-color);
+    box-shadow: 0 0 16px var(--glow-color), 0 0 4px var(--glow-color) inset;
+  }
+  50% {
+    border-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.city-pulse-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cityPulse 2s ease-out infinite;
+}
+
+@keyframes cityPulse {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  100% { transform: scale(3.5); opacity: 0;   }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes alertSlideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0);    }
+}
+
+@keyframes alertProgress {
+  from { width: 100%; }
+  to   { width: 0%;   }
 }
