@@ -39,7 +39,8 @@ export async function GET(
       }
 
       await send()
-      const interval = setInterval(send, 60_000)
+      const pollMs = city.tier === 2 ? 300_000 : 60_000
+      const interval = setInterval(send, pollMs)
 
       req.signal.addEventListener('abort', () => {
         clearInterval(interval)
